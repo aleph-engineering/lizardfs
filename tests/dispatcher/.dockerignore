@@ -75,3 +75,7 @@ dmypy.json
 .pyre/
 .pytype/
 cython_debug/
+
+# The client module is not needed in the docker image #
+#######################################################
+client/
