@@ -1,7 +1,8 @@
 from flask import Flask
 from flask import request
 
-def create_app():
+
+def create_app() -> Flask:
     app = Flask(__name__)
 
     app.data = {}
@@ -11,7 +12,7 @@ def create_app():
         print(app.data)
         return app.data
 
-    @app.route("/push_list", methods=['POST'])
+    @app.route("/push_list", methods=["POST"])
     def push_list():
         pipeline_id = str(request.form["pipeline_id"])
         tests = str(request.form["tests"])
@@ -25,8 +26,7 @@ def create_app():
 
         return {"status": "OK"}
 
-
-    @app.route("/next_test", methods=['GET'])
+    @app.route("/next_test", methods=["GET"])
     def next_test():
         pipeline_id = str(request.args.get("pipeline_id", ""))
 
