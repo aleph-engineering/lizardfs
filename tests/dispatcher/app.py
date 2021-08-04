@@ -8,12 +8,12 @@ def create_app() -> Flask:
     app.data = {}
 
     @app.route("/")
-    def index():
+    def index() -> str:
         print(app.data)
-        return app.data
+        return str(app.data)
 
     @app.route("/push_list", methods=["POST"])
-    def push_list():
+    def push_list() -> dict:
         pipeline_id = str(request.form["pipeline_id"])
         tests = str(request.form["tests"])
 
@@ -27,7 +27,7 @@ def create_app() -> Flask:
         return {"status": "OK"}
 
     @app.route("/next_test", methods=["GET"])
-    def next_test():
+    def next_test() -> str:
         pipeline_id = str(request.args.get("pipeline_id", ""))
 
         if pipeline_id == "":
