@@ -1,1 +1,2 @@
-from .slash_join import slash_join
+from .slash_join import *
+from .tests_list import *
