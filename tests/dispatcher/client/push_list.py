@@ -3,7 +3,7 @@ import sys
 
 import requests
 
-from .util import slash_join
+from util import slash_join, get_tests_list_with_durations
 
 TESTS_DISPATCHER_URL = os.environ.get("TESTS_DISPATCHER_URL", "http://127.0.0.1:5000/")
 URL = slash_join(TESTS_DISPATCHER_URL, "push_list")
