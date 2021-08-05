@@ -111,7 +111,7 @@ else
                 while [ "${NEXT_TEST}" != "" ]; do
                         "${LIZARDFS_ROOT}/bin/lizardfs-tests" \
                                 --gtest_color=yes \
-                                --gtest_filter="${NEXT_TEST}" \
+                                --gtest_filter="${TEST_SUITE}.${NEXT_TEST}" \
                                 --gtest_output="xml:${TEST_OUTPUT_DIR}/test_results.xml" || true
                         NEXT_TEST=$(get_next_test)
                 done
