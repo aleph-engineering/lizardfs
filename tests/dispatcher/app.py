@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 from flask import Flask
 from flask import request
 
@@ -5,7 +7,7 @@ from flask import request
 def create_app() -> Flask:
     app = Flask(__name__)
 
-    app.data = {}
+    app.data: Dict[str:Dict[str:List[str]]] = {}
 
     @app.route("/")
     def index() -> str:
@@ -14,42 +16,46 @@ def create_app() -> Flask:
 
     @app.route("/push_list", methods=["POST"])
     def push_list() -> dict:
-        pipeline_id = str(request.form["pipeline_id"])
-        tests = str(request.form["tests"])
+        json_data = request.json
+        build_id = json_data.get("build_id")
+        test_suite = json_data.get("test_suite")
+        tests = json_data.get("tests")
 
-        if pipeline_id in app.data:
-            return {"error": "This pipeline id already exists."}
+        if build_id in app.data:
+            if test_suite in app.data[build_id]:
+                return {"error": "This pipeline id already exists."}
+        else:
+            app.data[build_id] = {}
 
-        app.data[pipeline_id] = tests.split(":")
-
-        print(app.data)
+        app.data[build_id][test_suite] = tests
 
         return {"status": "OK"}
 
     @app.route("/next_test", methods=["GET"])
     def next_test() -> str:
-        pipeline_id = str(request.args.get("pipeline_id", ""))
+        build_id = str(request.args.get("build_id", ""))
+        test_suite = str(request.args.get("test_suite", ""))
 
-        if pipeline_id == "":
+        if build_id == "" or test_suite == "":
             return ""
 
-        if pipeline_id not in app.data:
+        if build_id not in app.data:
             return ""
 
-        tests_list = app.data[pipeline_id]
-
-        if len(tests_list) == 0:
+        if test_suite not in app.data[build_id]:
             return ""
 
-        first_test = tests_list[0]
+        if len(app.data[build_id][test_suite]) == 0:
+            return ""
 
-        del tests_list[0]
+        first_test = app.data[build_id][test_suite][0]
 
-        if len(tests_list) == 0:
-            del app.data[pipeline_id]
-        else:
-            app.data[pipeline_id] = tests_list
-            print(app.data[pipeline_id])
+        del app.data[build_id][test_suite][0]
+
+        if len(app.data[build_id][test_suite]) == 0:
+            del app.data[build_id][test_suite]
+            if len(app.data[build_id]) == 0:
+                del app.data[build_id]
 
         return first_test
 
