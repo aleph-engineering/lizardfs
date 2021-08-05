@@ -71,7 +71,7 @@ make -C build/lizardfs -j$(nproc) install
 
 killall -9 lizardfs-tests || true
 mkdir -m 777 -p $TEST_OUTPUT_DIR
-rm -rf $TEST_OUTPUT_DIR/* || true
+rm -rf "${TEST_OUTPUT_DIR:?}"/* || true
 rm -rf /mnt/ramdisk/* || true
 
 FILTER=$(python3 $WORKSPACE/tests/tools/filter_tests.py --workspace $WORKSPACE --test_suite $TEST_SUITE \
