@@ -24,6 +24,13 @@ def push_list(arguments: Namespace) -> str:
     return response.text
 
 
+def next_test(arguments: Namespace):
+    action_url = slash_join(TESTS_DISPATCHER_URL, "next_test")
+    request_payload = {"build_id": arguments.build_id, "test_suite": arguments.test_suite}
+    response = requests.get(url=action_url, params=request_payload)
+    return response.text
+
+
 if __name__ == "__main__":
     """Script which is used to split (all minus manually_excluded) tests from a given test_suite
     into 'nodes_count' groups, so that tests from each group can be run concurrently.
