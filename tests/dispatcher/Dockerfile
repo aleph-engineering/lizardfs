@@ -9,4 +9,4 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 EXPOSE 5000
 COPY --chown=runner:runner . ./
-CMD [ "flask", "run" ]
+CMD [ "flask", "run", "--without-threads" ]
