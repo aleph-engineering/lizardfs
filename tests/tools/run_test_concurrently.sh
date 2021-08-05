@@ -27,8 +27,7 @@
 
 set -o errexit -o nounset -o errtrace -o pipefail
 
-for ARGUMENT in "$@"
-do
+for ARGUMENT in "$@"; do
 	KEY=$(echo $ARGUMENT | cut -f1 -d=)
 	VALUE=$(echo $ARGUMENT | cut -f2 -d=)
 
@@ -40,6 +39,9 @@ do
 		NODES_COUNT)    NODES_COUNT=${VALUE} ;;
 		NODE_NUMBER)    NODE_NUMBER=${VALUE} ;;
 		VALGRIND)       VALGRIND=${VALUE} ;;
+                BUILD_ID)       BUILD_ID=${VALUE} ;;
+                DISPATCHER_URL) DISPATCHER_URL=${VALUE} ;;
+        *) ;;
 		*)
 	esac
 done
@@ -50,13 +52,15 @@ NODES_COUNT=${NODES_COUNT:-1}
 NODE_NUMBER=${NODE_NUMBER:-1}
 RUN_UNITTESTS=${RUN_UNITTESTS:-'false'}
 VALGRIND=${VALGRIND:-'No'}
+BUILD_ID=${BUILD_ID:-}
+DISPATCHER_URL=${DISPATCHER_URL:-}
 
 export LIZARDFS_ROOT=$WORKSPACE/install/lizardfs
 export TEST_OUTPUT_DIR=$WORKSPACE/test_output
 export TERM=xterm
 
 if [ $VALGRIND == "Yes" ]; then
-	export USE_VALGRIND=YES;
+        export USE_VALGRIND=YES
 fi
 
 # TODO: maybe somehow implement the following lines, to not run compilation,
@@ -74,11 +78,42 @@ mkdir -m 777 -p $TEST_OUTPUT_DIR
 rm -rf "${TEST_OUTPUT_DIR:?}"/* || true
 rm -rf /mnt/ramdisk/* || true
 
-FILTER=$(python3 $WORKSPACE/tests/tools/filter_tests.py --workspace $WORKSPACE --test_suite $TEST_SUITE \
-	--excluded_tests $EXCLUDE_TESTS --nodes_count $NODES_COUNT --node_number $NODE_NUMBER)
+if [ -z "${DISPATCHER_URL}" ]; then
 
-if [ $RUN_UNITTESTS == "true" ]; then
-	$WORKSPACE/build/lizardfs/src/unittests/unittests --gtest_color=yes --gtest_output=xml:$TEST_OUTPUT_DIR/unit_test_results.xml
+        FILTER=$(python3 $WORKSPACE/tests/tools/filter_tests.py --workspace $WORKSPACE --test_suite $TEST_SUITE \
+                --excluded_tests $EXCLUDE_TESTS --nodes_count $NODES_COUNT --node_number $NODE_NUMBER)
+
+        if [ $RUN_UNITTESTS == "true" ]; then
+                $WORKSPACE/build/lizardfs/src/unittests/unittests --gtest_color=yes --gtest_output=xml:$TEST_OUTPUT_DIR/unit_test_results.xml
+        fi
+
+        $LIZARDFS_ROOT/bin/lizardfs-tests --gtest_color=yes --gtest_filter=$FILTER --gtest_output=xml:$TEST_OUTPUT_DIR/test_results.xml
+
+else
+        (
+                export TESTS_DISPATCHER_URL="${DISPATCHER_URL}"
+                python3 "${WORKSPACE}/tests/dispatcher/client/dispatcher_client.py" \
+                        --action push_list \
+                        --build_id "${BUILD_ID}" \
+                        --workspace "${WORKSPACE}" \
+                        --test_suite "${TEST_SUITE}" \
+                        --excluded_tests "${EXCLUDE_TESTS}"
+
+                get_next_test() {
+                        echo -n "$(python3 "${WORKSPACE}/tests/dispatcher/client/dispatcher_client.py" \
+                                --action next_test \
+                                --build_id "${BUILD_ID}" \
+                                --workspace "${WORKSPACE}" \
+                                --test_suite "${TEST_SUITE}")"
+                }
+
+                NEXT_TEST=$(get_next_test)
+                while [ "${NEXT_TEST}" != "" ]; do
+                        "${LIZARDFS_ROOT}/bin/lizardfs-tests" \
+                                --gtest_color=yes \
+                                --gtest_filter="${NEXT_TEST}" \
+                                --gtest_output="xml:${TEST_OUTPUT_DIR}/test_results.xml" || true
+                        NEXT_TEST=$(get_next_test)
+                done
+        )
 fi
-
-$LIZARDFS_ROOT/bin/lizardfs-tests --gtest_color=yes --gtest_filter=$FILTER --gtest_output=xml:$TEST_OUTPUT_DIR/test_results.xml
