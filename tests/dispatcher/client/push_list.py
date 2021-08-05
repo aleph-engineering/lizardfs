@@ -10,10 +10,17 @@ from util import slash_join, get_tests_list_with_durations
 TESTS_DISPATCHER_URL = os.environ.get("TESTS_DISPATCHER_URL", "http://127.0.0.1:5000/")
 
 
-
-def push_list() -> str:
-    response = requests.post(url=URL, data=PARAMS)
-    print(response.text)
+def push_list(arguments: Namespace) -> str:
+    action_url = slash_join(TESTS_DISPATCHER_URL, "push_list")
+    tests = get_tests_list_with_durations(
+        arguments.workspace,
+        arguments.test_suite,
+        arguments.excluded_tests
+    )
+    sorted_tests = sorted(tests, key=lambda test_tuple: test_tuple[1], reverse=True)
+    test_list = [test_name for (test_name, _) in sorted_tests]
+    request_payload = {"build_id": arguments.build_id, "test_suite": arguments.test_suite, "tests": test_list}
+    response = requests.post(url=action_url, json=request_payload)
     return response.text
 
 
