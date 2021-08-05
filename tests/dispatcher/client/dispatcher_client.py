@@ -75,4 +75,4 @@ if __name__ == "__main__":
     if args.action == 'push_list':
         push_list(args)
     elif args.action == 'next_test':
-        next_test(args)
+        print(next_test(args))
