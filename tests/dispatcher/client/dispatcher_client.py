@@ -1,13 +1,49 @@
 import argparse
+import json
 import os
 import sys
 from argparse import Namespace
 
 import requests
 
-from util import slash_join, get_tests_list_with_durations
+from util import eprint, find_error_reasons, slash_join, get_tests_list_with_durations
 
 TESTS_DISPATCHER_URL = os.environ.get("TESTS_DISPATCHER_URL", "http://127.0.0.1:5000/")
+
+
+def _handle_error_gently(error: requests.exceptions.RequestException):
+    eprint("Error:", '\n'.join(find_error_reasons(error)))
+
+
+def _handle_error(error: requests.exceptions.RequestException):
+    _handle_error_gently(error)
+    sys.exit(1)
+
+
+def _call(url: str, params=None, method: str = 'get'):
+    if params is None:
+        params = {}
+    result = None
+    try:
+        if method == 'post':
+            response = requests.post(url=url, json=params)
+        elif method == 'put':
+            response = requests.put(url=url, json=params)
+        elif method == 'delete':
+            response = requests.delete(url=url, json=params)
+        else:
+            response = requests.get(url=url, params=params)
+        response.raise_for_status()
+        result = json.loads(response.content)
+    except requests.exceptions.HTTPError as err:
+        _handle_error_gently(err)
+    except requests.exceptions.ConnectionError as err:
+        _handle_error(err)
+    except requests.exceptions.Timeout as err:
+        _handle_error(err)
+    except requests.exceptions.RequestException as err:
+        _handle_error(err)
+    return result
 
 
 def push_list(arguments: Namespace) -> str:
@@ -20,15 +56,15 @@ def push_list(arguments: Namespace) -> str:
     sorted_tests = sorted(tests, key=lambda test_tuple: test_tuple[1], reverse=True)
     test_list = [test_name for (test_name, _) in sorted_tests]
     request_payload = {"build_id": arguments.build_id, "test_suite": arguments.test_suite, "tests": test_list}
-    response = requests.post(url=action_url, json=request_payload)
-    return response.text
+    response = _call(url=action_url, params=request_payload, method='post')
+    return response
 
 
-def next_test(arguments: Namespace):
+def next_test(arguments: Namespace) -> str:
     action_url = slash_join(TESTS_DISPATCHER_URL, "next_test")
     request_payload = {"build_id": arguments.build_id, "test_suite": arguments.test_suite}
-    response = requests.get(url=action_url, params=request_payload)
-    return response.text
+    response = _call(url=action_url, params=request_payload, method='get')
+    return response['details']
 
 
 if __name__ == "__main__":
