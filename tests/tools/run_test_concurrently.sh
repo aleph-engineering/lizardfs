@@ -54,13 +54,13 @@ VALGRIND=${VALGRIND:-'No'}
 BUILD_ID=${BUILD_ID:-}
 DISPATCHER_URL=${DISPATCHER_URL:-}
 
-FG_GREEN=$(tput setaf 2)
-FG_RED=$(tput setaf 1)
-RESET=$(tput sgr0)
-
 export LIZARDFS_ROOT=$WORKSPACE/install/lizardfs
 export TEST_OUTPUT_DIR=$WORKSPACE/test_output
 export TERM=xterm
+
+FG_GREEN=$(tput setaf 2)
+FG_RED=$(tput setaf 1)
+RESET=$(tput sgr0)
 
 if [ $VALGRIND == "Yes" ]; then
         export USE_VALGRIND=YES
