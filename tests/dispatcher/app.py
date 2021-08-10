@@ -39,7 +39,7 @@ def create_app() -> Flask:
         if build_id == "" or test_suite == "":
             return Response(json.dumps({"details": ""}), status=400, mimetype='application/json')
         if build_id not in app.data or test_suite not in app.data[build_id]:
-            return Response(json.dumps({"details": ""}), status=404, mimetype='application/json')
+            return Response(json.dumps({"details": ""}), status=200, mimetype='application/json')
         if len(app.data[build_id][test_suite]) == 0:
             return Response(json.dumps({"details": ""}), status=200, mimetype='application/json')
 
