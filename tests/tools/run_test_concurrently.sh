@@ -27,8 +27,7 @@
 
 set -o errexit -o nounset -o errtrace -o pipefail
 
-for ARGUMENT in "$@"
-do
+for ARGUMENT in "$@"; do
 	KEY=$(echo $ARGUMENT | cut -f1 -d=)
 	VALUE=$(echo $ARGUMENT | cut -f2 -d=)
 
@@ -39,9 +38,11 @@ do
 		RUN_UNITTESTS)  RUN_UNITTESTS=${VALUE} ;;
 		NODES_COUNT)    NODES_COUNT=${VALUE} ;;
 		NODE_NUMBER)    NODE_NUMBER=${VALUE} ;;
-		VALGRIND)       VALGRIND=${VALUE} ;;
-		*)
-	esac
+                VALGRIND)       VALGRIND=${VALUE} ;;
+                BUILD_ID)       BUILD_ID=${VALUE} ;;
+                DISPATCHER_URL) DISPATCHER_URL=${VALUE} ;;
+                *) ;;
+        esac
 done
 
 WORKSPACE=${WORKSPACE:-$(dirname $0)/../..}
@@ -50,13 +51,19 @@ NODES_COUNT=${NODES_COUNT:-1}
 NODE_NUMBER=${NODE_NUMBER:-1}
 RUN_UNITTESTS=${RUN_UNITTESTS:-'false'}
 VALGRIND=${VALGRIND:-'No'}
+BUILD_ID=${BUILD_ID:-}
+DISPATCHER_URL=${DISPATCHER_URL:-}
 
 export LIZARDFS_ROOT=$WORKSPACE/install/lizardfs
 export TEST_OUTPUT_DIR=$WORKSPACE/test_output
 export TERM=xterm
 
+FG_GREEN=$(tput setaf 2)
+FG_RED=$(tput setaf 1)
+RESET=$(tput sgr0)
+
 if [ $VALGRIND == "Yes" ]; then
-	export USE_VALGRIND=YES;
+        export USE_VALGRIND=YES
 fi
 
 # TODO: maybe somehow implement the following lines, to not run compilation,
@@ -71,14 +78,90 @@ make -C build/lizardfs -j$(nproc) install
 
 killall -9 lizardfs-tests || true
 mkdir -m 777 -p $TEST_OUTPUT_DIR
-rm -rf $TEST_OUTPUT_DIR/* || true
+rm -rf "${TEST_OUTPUT_DIR:?}"/* || true
 rm -rf /mnt/ramdisk/* || true
 
-FILTER=$(python3 $WORKSPACE/tests/tools/filter_tests.py --workspace $WORKSPACE --test_suite $TEST_SUITE \
-	--excluded_tests $EXCLUDE_TESTS --nodes_count $NODES_COUNT --node_number $NODE_NUMBER)
+if [ -z "${DISPATCHER_URL}" ]; then
 
-if [ $RUN_UNITTESTS == "true" ]; then
-	$WORKSPACE/build/lizardfs/src/unittests/unittests --gtest_color=yes --gtest_output=xml:$TEST_OUTPUT_DIR/unit_test_results.xml
+        FILTER=$(python3 $WORKSPACE/tests/tools/filter_tests.py --workspace $WORKSPACE --test_suite $TEST_SUITE \
+                --excluded_tests $EXCLUDE_TESTS --nodes_count $NODES_COUNT --node_number $NODE_NUMBER)
+
+        if [ $RUN_UNITTESTS == "true" ]; then
+                $WORKSPACE/build/lizardfs/src/unittests/unittests --gtest_color=yes --gtest_output=xml:$TEST_OUTPUT_DIR/unit_test_results.xml
+        fi
+
+        $LIZARDFS_ROOT/bin/lizardfs-tests --gtest_color=yes --gtest_filter=$FILTER --gtest_output=xml:$TEST_OUTPUT_DIR/test_results.xml
+
+else
+        {
+                export TESTS_DISPATCHER_URL="${DISPATCHER_URL}"
+                python3 "${WORKSPACE}/tests/dispatcher/client/dispatcher_client.py" \
+                        --action push_list \
+                        --build_id "${BUILD_ID}" \
+                        --workspace "${WORKSPACE}" \
+                        --test_suite "${TEST_SUITE}" \
+                        --excluded_tests "${EXCLUDE_TESTS}"
+
+                get_next_test() {
+                        echo -n "$(python3 "${WORKSPACE}/tests/dispatcher/client/dispatcher_client.py" \
+                                --action next_test \
+                                --build_id "${BUILD_ID}" \
+                                --workspace "${WORKSPACE}" \
+                                --test_suite "${TEST_SUITE}")"
+                }
+
+                conditionally_pluralize() {
+                        [ "${1:-1}" == "1" ] && echo "" || echo "s"
+                }
+
+                is_set() {
+                        option=${1:-}
+                        set -o | grep "${option}" | grep -q "on"
+                }
+
+                declare -a failed_tests=()
+                tests_count=0
+                NEXT_TEST=$(get_next_test)
+                START_TIME=$(($(date +%s%N) / 1000000))
+                while [ "${NEXT_TEST}" != "" ]; do
+                        "${LIZARDFS_ROOT}/bin/lizardfs-tests" \
+                                --gtest_color=yes \
+                                --gtest_filter="${TEST_SUITE}.${NEXT_TEST}" \
+                                --gtest_output="xml:${TEST_OUTPUT_DIR}/test_results.xml" || {
+                                failed_tests+=("${TEST_SUITE}.${NEXT_TEST}")
+                                true
+                        }
+                        NEXT_TEST=$(get_next_test)
+                        ((++tests_count))
+                done
+
+                xtrace_was_enabled=false
+                if is_set xtrace; then
+                        xtrace_was_enabled=true
+                        set +x;
+                fi
+                END_TIME=$(($(date +%s%N) / 1000000))
+                ELAPSED_TIME=$((END_TIME - START_TIME))
+                failed_tests_count=${#failed_tests[@]}
+                passed_tests_count=$((tests_count - failed_tests_count))
+                failed_plural=$([ "${failed_tests_count}" == "1" ] && echo "" || echo "s")
+                passed_plural=$([ "${failed_tests_count}" == "1" ] && echo "" || echo "s")
+
+                echo "${FG_GREEN}[----------]${RESET} Global test environment tear-down"
+                echo "${FG_GREEN}[==========]${RESET} ${tests_count} test$(conditionally_pluralize "${tests_count}") from 1 test case ran. (${ELAPSED_TIME} ms total)"
+                echo "${FG_GREEN}[  PASSED  ]${RESET} ${passed_tests_count} test$(conditionally_pluralize "${passed_tests_count}")."
+                if ((failed_tests_count > 0)); then
+                        echo "${FG_RED}[  FAILED  ]${RESET} ${failed_tests_count} test$(conditionally_pluralize "${failed_tests_count}"), listed below:"
+                        for failed_test in "${failed_tests[@]}"; do
+                                echo "${FG_RED}[  FAILED  ]${RESET} ${failed_test}"
+                        done
+                fi
+                echo ""
+                echo " ${failed_tests_count} FAILED TEST"
+                echo "Build step 'Execute shell' marked build as failure"
+                if ${xtrace_was_enabled}; then
+                        set -x
+                fi
+                exit "${failed_tests_count}"
+        }
 fi
-
-$LIZARDFS_ROOT/bin/lizardfs-tests --gtest_color=yes --gtest_filter=$FILTER --gtest_output=xml:$TEST_OUTPUT_DIR/test_results.xml
