@@ -3,33 +3,39 @@ import json
 import os
 import sys
 from argparse import Namespace
+from typing import Any, Optional
 
 import requests
 
-from util import eprint, find_error_reasons, slash_join, get_tests_list_with_durations
+from .tests_list import get_tests_list_with_durations
 
 TESTS_DISPATCHER_URL = os.environ.get("TESTS_DISPATCHER_URL", "http://127.0.0.1:5000/")
 
 
-def _handle_error_gently(error: requests.exceptions.RequestException):
-    eprint("Error:", '\n'.join(find_error_reasons(error)))
+def slash_join(*args: str) -> str:
+    """Concatenate the arguments avoiding duplicate slash in the joint"""
+    return "/".join(arg.strip("/") for arg in args)
 
 
-def _handle_error(error: requests.exceptions.RequestException):
+def _handle_error_gently(error: requests.exceptions.RequestException) -> None:
+    print("Error:", error, file=sys.stderr)
+
+
+def _handle_error(error: requests.exceptions.RequestException) -> None:
     _handle_error_gently(error)
     sys.exit(1)
 
 
-def _call(url: str, params=None, method: str = 'get'):
+def _call(url: str, params: Optional[Any] = None, method: str = "get") -> Any:
     if params is None:
         params = {}
-    result = None
+    result = ""
     try:
-        if method == 'post':
+        if method == "post":
             response = requests.post(url=url, json=params)
-        elif method == 'put':
+        elif method == "put":
             response = requests.put(url=url, json=params)
-        elif method == 'delete':
+        elif method == "delete":
             response = requests.delete(url=url, json=params)
         else:
             response = requests.get(url=url, params=params)
@@ -46,25 +52,31 @@ def _call(url: str, params=None, method: str = 'get'):
     return result
 
 
-def push_list(arguments: Namespace) -> str:
+def push_list(arguments: Namespace) -> Any:
     action_url = slash_join(TESTS_DISPATCHER_URL, "push_list")
     tests = get_tests_list_with_durations(
-        arguments.workspace,
-        arguments.test_suite,
-        arguments.excluded_tests
+        arguments.workspace, arguments.test_suite, arguments.excluded_tests
     )
-    sorted_tests = sorted(tests, key=lambda test_tuple: test_tuple[1], reverse=True)
+    get_the_second = lambda test_tuple: test_tuple[1]
+    sorted_tests = sorted(tests, key=get_the_second, reverse=True)
     test_list = [test_name for (test_name, _) in sorted_tests]
-    request_payload = {"build_id": arguments.build_id, "test_suite": arguments.test_suite, "tests": test_list}
-    response = _call(url=action_url, params=request_payload, method='post')
+    request_payload = {
+        "build_id": arguments.build_id,
+        "test_suite": arguments.test_suite,
+        "tests": test_list,
+    }
+    response = _call(url=action_url, params=request_payload, method="post")
     return response
 
 
-def next_test(arguments: Namespace) -> str:
+def next_test(arguments: Namespace) -> Any:
     action_url = slash_join(TESTS_DISPATCHER_URL, "next_test")
-    request_payload = {"build_id": arguments.build_id, "test_suite": arguments.test_suite}
-    response = _call(url=action_url, params=request_payload, method='get')
-    return response['details']
+    request_payload = {
+        "build_id": arguments.build_id,
+        "test_suite": arguments.test_suite,
+    }
+    response = _call(url=action_url, params=request_payload, method="get")
+    return response["details"]
 
 
 if __name__ == "__main__":
@@ -78,14 +90,15 @@ if __name__ == "__main__":
         description="Filter tests for concurrent runs. All following arguments besides 'excluded_tests' are required."
     )
     parser.add_argument(
-        "-a", "--action", type=str, help="The action to request from the dispatcher\n"
-                                         "Currently:\n"
-                                         " - push_list\n"
-                                         " - next_test\n"
+        "-a",
+        "--action",
+        type=str,
+        help="The action to request from the dispatcher\n"
+             "Currently:\n"
+             " - push_list\n"
+             " - next_test\n",
     )
-    parser.add_argument(
-        "-b", "--build_id", type=str, help="Id of the current build"
-    )
+    parser.add_argument("-b", "--build_id", type=str, help="Id of the current build")
     parser.add_argument(
         "-w", "--workspace", type=str, help="Path to lizardfs test directory"
     )
@@ -108,7 +121,7 @@ if __name__ == "__main__":
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    if args.action == 'push_list':
+    if args.action == "push_list":
         push_list(args)
-    elif args.action == 'next_test':
+    elif args.action == "next_test":
         print(next_test(args))

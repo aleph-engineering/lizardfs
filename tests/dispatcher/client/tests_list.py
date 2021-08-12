@@ -3,7 +3,7 @@ from typing import List, Set, Tuple
 
 
 def get_excluded_tests_two_types(
-        excluded_tests: List[str], test_suite: str
+    excluded_tests: List[str], test_suite: str
 ) -> Set[str]:
     """Returns a list with excluded tests. Each test is there twice, e.g. both
     'LongSystemTests.testname' and 'testname'."""
@@ -19,13 +19,13 @@ def get_excluded_tests_two_types(
 
 
 def get_gtest_testlist(
-        workspace: str, test_suite: str, excluded_tests: List[str]
+    workspace: str, test_suite: str, excluded_tests: List[str]
 ) -> List[str]:
     """Returns a list of (all minus excluded) tests in a given test_suite"""
 
     tests_list = os.popen(
         workspace + "/install/lizardfs/bin/lizardfs-tests "
-                    "--gtest_list_tests --gtest_filter=" + test_suite + "*"
+        "--gtest_list_tests --gtest_filter=" + test_suite + "*"
     )
 
     # Remove unnecessary lines - go just to tests' list
@@ -37,7 +37,7 @@ def get_gtest_testlist(
 
 
 def get_data_testlist(
-        workspace: str, test_suite: str, excluded_tests: List[str]
+    workspace: str, test_suite: str, excluded_tests: List[str]
 ) -> List[Tuple[str, float]]:
     """Returns a list of (all minus excluded) tests in a given test_suite,
     The list is of tuples (test_name, test_duration).
@@ -55,7 +55,7 @@ def get_data_testlist(
 
 
 def get_tests_list_with_durations(
-        workspace: str, test_suite: str, excluded_tests: List[str]
+    workspace: str, test_suite: str, excluded_tests: List[str]
 ) -> List[Tuple[str, float]]:
     """Returns list with tuples (testname, duration of test)"""
 
