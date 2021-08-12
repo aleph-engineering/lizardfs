@@ -32,14 +32,14 @@ for ARGUMENT in "$@"; do
 	VALUE=$(echo $ARGUMENT | cut -f2 -d=)
 
 	case "$KEY" in
-		WORKSPACE)      WORKSPACE=${VALUE} ;;
-		TEST_SUITE)     TEST_SUITE=${VALUE} ;;
-		EXCLUDE_TESTS)  EXCLUDE_TESTS=${VALUE} ;;
-		RUN_UNITTESTS)  RUN_UNITTESTS=${VALUE} ;;
-		NODES_COUNT)    NODES_COUNT=${VALUE} ;;
-		NODE_NUMBER)    NODE_NUMBER=${VALUE} ;;
-                VALGRIND)       VALGRIND=${VALUE} ;;
-                BUILD_ID)       BUILD_ID=${VALUE} ;;
+                WORKSPACE) WORKSPACE=${VALUE} ;;
+                TEST_SUITE) TEST_SUITE=${VALUE} ;;
+                EXCLUDE_TESTS) EXCLUDE_TESTS=${VALUE} ;;
+                RUN_UNITTESTS) RUN_UNITTESTS=${VALUE} ;;
+                NODES_COUNT) NODES_COUNT=${VALUE} ;;
+                NODE_NUMBER) NODE_NUMBER=${VALUE} ;;
+                VALGRIND) VALGRIND=${VALUE} ;;
+                BUILD_ID) BUILD_ID=${VALUE} ;;
                 DISPATCHER_URL) DISPATCHER_URL=${VALUE} ;;
                 *) ;;
         esac
@@ -138,7 +138,7 @@ else
                 xtrace_was_enabled=false
                 if is_set xtrace; then
                         xtrace_was_enabled=true
-                        set +x;
+                        set +x
                 fi
                 END_TIME=$(($(date +%s%N) / 1000000))
                 ELAPSED_TIME=$((END_TIME - START_TIME))
