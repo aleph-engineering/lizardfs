@@ -94,9 +94,9 @@ if __name__ == "__main__":
         "--action",
         type=str,
         help="The action to request from the dispatcher\n"
-             "Currently:\n"
-             " - push_list\n"
-             " - next_test\n",
+        "Currently:\n"
+        " - push_list\n"
+        " - next_test\n",
     )
     parser.add_argument("-b", "--build_id", type=str, help="Id of the current build")
     parser.add_argument(
@@ -113,10 +113,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if (
-            not args.build_id
-            or not args.workspace
-            or not args.test_suite
-            or not args.action
+        not args.build_id
+        or not args.workspace
+        or not args.test_suite
+        or not args.action
     ):
         parser.print_help(sys.stderr)
         sys.exit(1)

@@ -12,7 +12,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app_context = app.app_context()
     app_context.push()
-    current_app.config["tests"] = BuildTestData()
+    current_app.config["tests"] = dict()
 
     @app.route("/", methods=["GET"])
     def index() -> Response:
