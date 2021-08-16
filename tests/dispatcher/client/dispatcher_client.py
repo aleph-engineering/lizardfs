@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 import requests
 
-from .tests_list import get_tests_list_with_durations
+from tests_list import get_tests_list_with_durations
 
 TESTS_DISPATCHER_URL = os.environ.get("TESTS_DISPATCHER_URL", "http://127.0.0.1:5000/")
 
